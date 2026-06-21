@@ -13,6 +13,7 @@ deploy:
 		--stack-name $(STACK_NAME) \
 		--region $(REGION) \
 		--capabilities CAPABILITY_IAM \
+		--resolve-s3 \
 		--resolve-image-repos \
 		--parameter-overrides EndpointSecret=$(SECRET)
 	@echo ""
@@ -35,6 +36,7 @@ update:
 		--stack-name $(STACK_NAME) \
 		--region $(REGION) \
 		--capabilities CAPABILITY_IAM \
+		--resolve-s3 \
 		--resolve-image-repos \
 		--parameter-overrides EndpointSecret=$(EXISTING_SECRET)
 
