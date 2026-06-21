@@ -26,19 +26,13 @@ deploy:
 
 # Re-deploy after code changes (reuses the existing secret from the deployed stack).
 update:
-	$(eval EXISTING_SECRET := $(shell aws ssm get-parameter \
-		--name /dms/endpoint-secret \
-		--with-decryption \
-		--query Parameter.Value \
-		--output text 2>/dev/null || echo ""))
 	sam build
 	sam deploy \
 		--stack-name $(STACK_NAME) \
 		--region $(REGION) \
 		--capabilities CAPABILITY_IAM \
 		--resolve-s3 \
-		--resolve-image-repos \
-		--parameter-overrides EndpointSecret=$(EXISTING_SECRET)
+		--resolve-image-repos
 
 destroy:
 	aws cloudformation delete-stack --stack-name $(STACK_NAME) --region $(REGION)

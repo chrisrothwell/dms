@@ -79,6 +79,3 @@ Outputs:
   ResetUrl:
     Description: POST — resets the timer 30 days into the future.
     Value: !Sub "https://${NukeApi}.execute-api.${AWS::Region}.amazonaws.com/${EndpointSecret}/reset"
-  DryRunUrl:
-    Description: GET — dry-run scan showing what would be deleted (no actual deletion, max 25s output).
-    Value: !Sub "https://${NukeApi}.execute-api.${AWS::Region}.amazonaws.com/${EndpointSecret}/dryrun"

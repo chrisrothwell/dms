@@ -37,6 +37,9 @@ def lambda_handler(event, context):
     if event.get("source") == "aws.events":
         return _handle_schedule()
 
+    if event.get("action") == "dryrun":
+        return _handle_dryrun()
+
     path = event.get("rawPath", "")
     method = event.get("requestContext", {}).get("http", {}).get("method", "")
 
@@ -54,8 +57,6 @@ def lambda_handler(event, context):
         return _handle_status()
     if path == f"/{ENDPOINT_SECRET}/reset" and method == "POST":
         return _handle_reset()
-    if path == f"/{ENDPOINT_SECRET}/dryrun" and method == "GET":
-        return _handle_dryrun()
 
     return {"statusCode": 404, "body": "Not Found"}
 
@@ -87,37 +88,25 @@ def _handle_dryrun():
         yaml.dump(config, f, default_flow_style=False)
         config_path = f.name
 
-    # API Gateway HTTP API enforces a 29-second response timeout.
-    # We cut the subprocess at 25s so we can still return partial results.
-    truncated = False
-    try:
-        result = subprocess.run(
-            [
-                "/usr/local/bin/aws-nuke",
-                "run",
-                "--config", config_path,
-                "--force",
-                "--bypass-alias-check",
-                # no --no-dry-run: this is intentionally a dry run
-            ],
-            timeout=25,
-            capture_output=True,
-            text=True,
-        )
-        output = result.stdout + result.stderr
-    except subprocess.TimeoutExpired as e:
-        output = (e.stdout or "") + (e.stderr or "")
-        truncated = True
+    print("=== aws-nuke dry run starting ===")
+    proc = subprocess.Popen(
+        [
+            "/usr/local/bin/aws-nuke",
+            "run",
+            "--config", config_path,
+            "--force",
+            "--bypass-alias-check",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    for line in proc.stdout:
+        print(line, end="")
+    proc.wait()
+    print(f"=== aws-nuke dry run finished (exit code {proc.returncode}) ===")
 
-    return {
-        "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({
-            "truncated": truncated,
-            "note": "Results may be partial — API Gateway enforces a 29-second timeout." if truncated else None,
-            "output": output,
-        }),
-    }
+    return {"statusCode": 200, "body": "Dry run complete — check CloudWatch logs."}
 
 
 def _handle_schedule():
