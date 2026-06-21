@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dead Man's Switch</title>
+<style>
+  body { font-family: sans-serif; max-width: 500px; margin: 60px auto; text-align: center; }
+  #nuke-at { font-size: 1.4em; margin: 20px 0 8px; }
+  #countdown { font-size: 2em; font-weight: bold; margin: 8px 0 30px; }
+  #reset-btn { font-size: 1.2em; padding: 12px 32px; cursor: pointer; }
+  #status { margin-top: 16px; color: #666; }
+  .error { color: #c00; }
+</style>
+</head>
+<body>
+
+<h1>Dead Man's Switch</h1>
+<div id="nuke-at"></div>
+<div id="countdown"></div>
+<button id="reset-btn" onclick="reset()">Reset</button>
+<div id="status"></div>
+
+<script>
+var BASE_URL = "https://mpd045bhjk.execute-api.ap-southeast-1.amazonaws.com/9b9551d443169b466c2adec69cf91457";
+
+var timer = null;
+var nukeAt = null;
+
+function formatRemaining(seconds) {
+  if (seconds <= 0) return "EXPIRED";
+  var d = Math.floor(seconds / 86400);
+  var h = Math.floor((seconds % 86400) / 3600);
+  var m = Math.floor((seconds % 3600) / 60);
+  var s = seconds % 60;
+  var parts = [];
+  if (d > 0) parts.push(d + "d");
+  if (h > 0) parts.push(h + "h");
+  if (m > 0) parts.push(m + "m");
+  parts.push(s + "s");
+  return parts.join(" ");
+}
+
+function tick() {
+  if (!nukeAt) return;
+  var remaining = Math.max(0, Math.floor((nukeAt - Date.now()) / 1000));
+  document.getElementById("countdown").textContent = formatRemaining(remaining);
+}
+
+function fetchStatus() {
+  document.getElementById("status").textContent = "Loading...";
+  fetch(BASE_URL + "/status")
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      nukeAt = new Date(data.nuke_at).getTime();
+      document.getElementById("nuke-at").textContent = "Nuke at: " + new Date(data.nuke_at).toLocaleString();
+      document.getElementById("status").textContent = "";
+      tick();
+      clearInterval(timer);
+      timer = setInterval(tick, 1000);
+    })
+    .catch(function(err) {
+      document.getElementById("status").textContent = "Error: " + err.message;
+      document.getElementById("status").className = "error";
+    });
+}
+
+function reset() {
+  document.getElementById("status").textContent = "Resetting...";
+  document.getElementById("reset-btn").disabled = true;
+  fetch(BASE_URL + "/reset", { method: "POST" })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      nukeAt = new Date(data.nuke_at).getTime();
+      document.getElementById("nuke-at").textContent = "Nuke at (SGT): " + new Date(data.nuke_at).toLocaleString();
+      document.getElementById("status").textContent = data.message;
+      document.getElementById("status").className = "";
+      tick();
+    })
+    .catch(function(err) {
+      document.getElementById("status").textContent = "Error: " + err.message;
+      document.getElementById("status").className = "error";
+    })
+    .finally(function() {
+      document.getElementById("reset-btn").disabled = false;
+    });
+}
+
+fetchStatus();
+</script>
+
+</body>
+</html>
