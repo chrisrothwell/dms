@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Dead man's switch — nukes the AWS account if not reset within 30 days.
+
+Parameters:
+  EndpointSecret:
+    Type: String
+    NoEcho: true
+    Description: >
+      Random string used as the URL path prefix for both API endpoints.
+      Generate with: openssl rand -hex 16
+
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 1024
+    Architectures:
+      - x86_64
+
+Resources:
+
+  NukeDatetimeParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /dms/nuke-datetime
+      Type: String
+      Value: UNSET
+
+  NukeFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  NukeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Role: !GetAtt NukeFunctionRole.Arn
+      Environment:
+        Variables:
+          NUKE_DATETIME_PARAM: !Ref NukeDatetimeParam
+          ENDPOINT_SECRET: !Ref EndpointSecret
+      Events:
+        ApiProxy:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+            ApiId: !Ref NukeApi
+        DailyCheck:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 day)
+            Description: Daily check — triggers nuke if the timer has expired.
+            Enabled: true
+    Metadata:
+      DockerTag: latest
+      DockerContext: .
+      Dockerfile: Dockerfile
+
+  NukeApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+
+Outputs:
+  StatusUrl:
+    Description: GET — returns nuke datetime and seconds remaining.
+    Value: !Sub "https://${NukeApi}.execute-api.${AWS::Region}.amazonaws.com/${EndpointSecret}/status"
+  ResetUrl:
+    Description: POST — resets the timer 30 days into the future.
+    Value: !Sub "https://${NukeApi}.execute-api.${AWS::Region}.amazonaws.com/${EndpointSecret}/reset"
+  DryRunUrl:
+    Description: GET — dry-run scan showing what would be deleted (no actual deletion, max 25s output).
+    Value: !Sub "https://${NukeApi}.execute-api.${AWS::Region}.amazonaws.com/${EndpointSecret}/dryrun"
