@@ -40,6 +40,16 @@ def lambda_handler(event, context):
     path = event.get("rawPath", "")
     method = event.get("requestContext", {}).get("http", {}).get("method", "")
 
+    if method == "OPTIONS":
+        return {
+            "statusCode": 204,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+            },
+        }
+
     if path == f"/{ENDPOINT_SECRET}/status" and method == "GET":
         return _handle_status()
     if path == f"/{ENDPOINT_SECRET}/reset" and method == "POST":
@@ -191,6 +201,10 @@ def _set_nuke_datetime(dt: datetime):
 def _json_response(status: int, body: dict) -> dict:
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        },
         "body": json.dumps(body),
     }
