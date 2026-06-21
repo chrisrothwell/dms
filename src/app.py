@@ -18,23 +18,6 @@ ENDPOINT_SECRET = os.environ["ENDPOINT_SECRET"]
 STACK_NAME = os.environ.get("STACK_NAME", "dms")
 ALERT_TOPIC_ARN = os.environ.get("ALERT_TOPIC_ARN")
 
-ALL_REGIONS = [
-    "global",
-    "us-east-1", "us-east-2",
-    "us-west-1", "us-west-2",
-    "eu-west-1", "eu-west-2", "eu-west-3",
-    "eu-central-1", "eu-central-2",
-    "eu-north-1", "eu-south-1",
-    "ap-southeast-1", "ap-southeast-2", "ap-southeast-3",
-    "ap-northeast-1", "ap-northeast-2", "ap-northeast-3",
-    "ap-south-1", "ap-south-2",
-    "ap-east-1",
-    "sa-east-1",
-    "ca-central-1", "ca-west-1",
-    "me-south-1", "me-central-1",
-    "af-south-1",
-    "il-central-1",
-]
 
 S3_RESOURCE_TYPES = ["S3Bucket", "S3Object", "S3MultipartUpload"]
 
@@ -239,7 +222,7 @@ def _get_stack_protection_filters():
 def _build_nuke_config(account_id, filters=None, resource_targets=None):
     config = {
         "blocklist": ["000000000000"],
-        "regions": ALL_REGIONS,
+        "regions": ["all"],
         "accounts": {
             account_id: {
                 "settings": {
@@ -257,7 +240,7 @@ def _build_nuke_config(account_id, filters=None, resource_targets=None):
         config["accounts"][account_id]["filters"] = filters
 
     if resource_targets:
-        config["resource-types"] = {"targets": resource_targets}
+        config["resource-types"] = {"includes": resource_targets}
 
     return config
 
