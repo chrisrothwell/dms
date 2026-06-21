@@ -10,6 +10,10 @@ Parameters:
       Random string used as the URL path prefix for both API endpoints.
       Generate with: openssl rand -hex 16
 
+  NotificationEmail:
+    Type: String
+    Description: Email address for timer reset and warning notifications.
+
 Globals:
   Function:
     Timeout: 900
@@ -25,6 +29,18 @@ Resources:
       Name: /dms/nuke-datetime
       Type: String
       Value: UNSET
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: dms-alerts
+
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+      TopicArn: !Ref AlertTopic
 
   NukeFunctionRole:
     Type: AWS::IAM::Role
@@ -49,6 +65,8 @@ Resources:
         Variables:
           NUKE_DATETIME_PARAM: !Ref NukeDatetimeParam
           ENDPOINT_SECRET: !Ref EndpointSecret
+          STACK_NAME: !Ref "AWS::StackName"
+          ALERT_TOPIC_ARN: !Ref AlertTopic
       Events:
         ApiProxy:
           Type: HttpApi
@@ -56,12 +74,20 @@ Resources:
             Path: /{proxy+}
             Method: ANY
             ApiId: !Ref NukeApi
-        DailyCheck:
+        HourlyNukeCheck:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Description: Hourly check — triggers nuke if the timer has expired.
+            Enabled: true
+            Input: '{"action": "nuke_check"}'
+        DailyReminder:
           Type: Schedule
           Properties:
             Schedule: rate(1 day)
-            Description: Daily check — triggers nuke if the timer has expired.
+            Description: Daily check — sends warning email if 5 or fewer days remain.
             Enabled: true
+            Input: '{"action": "daily_reminder"}'
     Metadata:
       DockerTag: latest
       DockerContext: .

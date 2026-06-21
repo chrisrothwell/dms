@@ -1,6 +1,7 @@
 STACK_NAME   := dms
 REGION       := $(shell aws configure get region)
 SECRET       := $(shell openssl rand -hex 16)
+EMAIL        := me@chrisrothwell.com
 
 .PHONY: deploy destroy secret
 
@@ -15,7 +16,7 @@ deploy:
 		--capabilities CAPABILITY_IAM \
 		--resolve-s3 \
 		--resolve-image-repos \
-		--parameter-overrides EndpointSecret=$(SECRET)
+		--parameter-overrides EndpointSecret=$(SECRET) NotificationEmail=$(EMAIL)
 	@echo ""
 	@echo "Endpoints:"
 	@aws cloudformation describe-stacks \
@@ -32,7 +33,8 @@ update:
 		--region $(REGION) \
 		--capabilities CAPABILITY_IAM \
 		--resolve-s3 \
-		--resolve-image-repos
+		--resolve-image-repos \
+		--parameter-overrides NotificationEmail=$(EMAIL)
 
 destroy:
 	aws cloudformation delete-stack --stack-name $(STACK_NAME) --region $(REGION)
