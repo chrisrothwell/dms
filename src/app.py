@@ -215,6 +215,10 @@ def _get_stack_protection_filters():
         for policy in MANAGED_POLICIES:
             attachments.append(f"{role_name} -> {policy}")
 
+    # Prevent aws-nuke from calling DeleteStack on the DMS stack, which would
+    # bypass the per-resource filters above and kill the Lambda mid-execution.
+    filters.setdefault("CloudFormationStack", []).append(STACK_NAME)
+
     print(f"Stack protection filters: {json.dumps(filters, indent=2)}")
     return filters
 
